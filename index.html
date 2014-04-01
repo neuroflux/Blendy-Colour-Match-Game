@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>FIND DAT COLOUR!</title>
+		<style type="text/css">
+			* { font-family: Calibri; }
+			canvas {
+				border: 2px solid #f4f4f4;
+				border-radius: 4px;
+			}
+			#matchme {
+				width: 100px;
+				height: 100px;
+				background-color: rgba(0,0,0,1.0);
+			}
+			#thered,#thered2,#thegreen,#thegreen2,#theblue,#theblue2 {
+				
+			}
+			#timer, #hint { display: inline-block; }
+			#wrapper {
+				width: 304px;
+				margin: 0 auto;
+			}
+			h1 {
+				display: block;
+				width: 155px;
+				font-size: 24px;
+				float: left;
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div style="border-radius: 8px; width: 312px; height: 380px; margin: 0 auto; padding: 4px; background-color: #333; color: #f4f4f4;">
+			<!-- START HTML -->
+			<div id="timer"><span id="time">0</span> secs | Threshold of <span id="threshold">30</span></div>
+			<input type="button" value="HINT [x1]" id="hint" />
+			<hr>
+			<div class="wrapper">
+				<h1>TARGET</h1>
+				<h1>GUESS</h1>
+				<canvas id="target" width="150" height="100"></canvas>
+				<canvas id="guess" width="150" height="100"></canvas>
+			</div>
+
+			<br /><br />
+
+			<div class="wrapper">
+				<div style="float: left; width: 155px;line-height: 34px;">
+					R<input id="thered" type="range" min="0" max="128" step="5" value="0" /><br />
+					G<input id="thegreen" type="range" min="0" max="128" step="5" value="0" /><br />
+					B<input id="theblue" type="range" min="0" max="128" step="5" value="0" /><br />
+				</div>
+				<div style="float: right; width: 155px;line-height: 34px;">
+					R<input id="thered2" type="range" min="0" max="128" step="5" value="0" /><br />
+					G<input id="thegreen2" type="range" min="0" max="128" step="5" value="0" /><br />
+					B<input id="theblue2" type="range" min="0" max="128" step="5" value="0" /><br />
+				</div>
+			</div>
+			<div id="finished" style="width: 350px; clear: both;"></div>
+		</div>
+		
+		<!-- END HTML -->
+		
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<script>			
+			var Engine = {
+				GuessColourA: null,
+				GuessColourB: null,
+				
+				TimeCheck: null,
+				Time: 0,
+				
+				Hints: 1,
+			
+				TargetRed: 0,
+				TargetGreen: 0,
+				TargetBlue: 0,
+				
+				Threshold: 30,
+				
+				GuessRed: 0,
+				GuessGreen: 0,
+				GuessBlue: 0,
+				
+				GuessRed2: 0,
+				GuessGreen2: 0,
+				GuessBlue2: 0,
+				
+				TargetCanvas: null,
+				TargetContext: null,
+				
+				Canvas: null,
+				Context: null,
+				
+				PixelColour: null,
+				
+				TargetText: "TARGET",
+				GuessText: "YOUR GUESS",
+				
+				SetUp: function() {
+					Engine.TargetCanvas = document.getElementById("target");
+					Engine.TargetContext = Engine.TargetCanvas.getContext("2d");
+					
+					Engine.Canvas = document.getElementById("guess");
+					Engine.Context = Engine.Canvas.getContext("2d");
+					
+					Engine.Init(0);
+				},
+				Init: function(tsh) {
+					$('#thered,#thered2,#thegreen,#thegreen2,#theblue,#theblue2').val(0);
+					
+					clearInterval(Engine.HintInterval);
+					clearInterval(Engine.TimeCheck);
+					Engine.Time = 0;
+					
+					Engine.GuessRed = 0;
+					Engine.GuessGreen = 0;
+					Engine.GuessBlue = 0;
+					Engine.GuessRed2 = 0;
+					Engine.GuessGreen2 = 0;
+					Engine.GuessBlue2 = 0;
+					
+					Engine.Hints = 1;
+					
+					Engine.Threshold = eval(Engine.Threshold) - eval(tsh);
+					if (Engine.Threshold < 0) { Engine.Threshold = 0; }
+					
+					$('#threshold').html(Engine.Threshold);
+					
+					Engine.GenerateColour();
+				},
+				Hinted: [],
+				HintInterval: null,
+				Events: function() {					
+					$('#thered, #thegreen, #theblue').on('change', function() {
+						Engine.GuessRed = $('#thered').val();
+						Engine.GuessGreen = $('#thegreen').val();
+						Engine.GuessBlue = $('#theblue').val();
+						Engine.IsColourRight();
+					});
+					$('#thered2, #thegreen2, #theblue2').on('change', function() {
+						Engine.GuessRed2 = $('#thered2').val();
+						Engine.GuessGreen2 = $('#thegreen2').val();
+						Engine.GuessBlue2 = $('#theblue2').val();
+						Engine.IsColourRight();
+					});
+					$('#hint').on('click', function() {
+						if (Engine.Hints > 0) {
+							var whichCol = Math.floor(Math.random() * 3);
+							if (Engine.Hinted.indexOf(whichCol) > -1) {
+								whichCol = Math.floor(Math.random() * 3);
+							} else {
+								Engine.Hinted.push(whichCol);
+								switch(whichCol) {
+									case 0:
+										$('#thered,#thered2').val(0);
+										Engine.HintInterval = setInterval(function() {
+											var newVal = eval($('#thered,#thered2').val()) + 10;
+											$('#thered,#thered2').val(newVal);
+											
+											Engine.GuessRed = $('#thered').val();
+											Engine.GuessGreen = $('#thegreen').val();
+											Engine.GuessBlue = $('#theblue').val();
+											Engine.GuessRed2 = $('#thered2').val();
+											Engine.GuessGreen2 = $('#thegreen2').val();
+											Engine.GuessBlue2 = $('#theblue2').val();
+											Engine.IsColourRight();
+											
+											if (newVal >= Math.floor(Engine.TargetRed/2)) {
+												clearInterval(Engine.HintInterval);
+												Engine.Hints--;
+												$('#hint').val("HINT [x"+Engine.Hints+"]");
+											}
+										}, 10);
+										break;
+									case 1:
+										$('#thegreen,#thegreen2').val(0);
+										Engine.HintInterval = setInterval(function() {
+											var newVal = eval($('#thegreen,#thegreen2').val()) + 10;
+											$('#thegreen,#thegreen2').val(newVal);
+											
+											Engine.GuessRed = $('#thered').val();
+											Engine.GuessGreen = $('#thegreen').val();
+											Engine.GuessBlue = $('#theblue').val();
+											Engine.GuessRed2 = $('#thered2').val();
+											Engine.GuessGreen2 = $('#thegreen2').val();
+											Engine.GuessBlue2 = $('#theblue2').val();
+											Engine.IsColourRight();
+											
+											if (newVal >= Math.floor(Engine.TargetGreen/2)) {
+												clearInterval(Engine.HintInterval);
+												Engine.Hints--;
+												$('#hint').val("HINT [x"+Engine.Hints+"]");
+											}
+										}, 10);
+										break;
+									case 2:
+										$('#theblue,#theblue2').val(0);
+										Engine.HintInterval = setInterval(function() {
+											var newVal = eval($('#theblue,#theblue2').val()) + 10;
+											$('#theblue,#theblue2').val(newVal);
+											
+											Engine.GuessRed = $('#thered').val();
+											Engine.GuessGreen = $('#thegreen').val();
+											Engine.GuessBlue = $('#theblue').val();
+											Engine.GuessRed2 = $('#thered2').val();
+											Engine.GuessGreen2 = $('#thegreen2').val();
+											Engine.GuessBlue2 = $('#theblue2').val();
+											Engine.IsColourRight();
+											
+											if (newVal >= Math.floor(Engine.TargetBlue/2)) {
+												clearInterval(Engine.HintInterval);
+												Engine.Hints--;
+												$('#hint').val("HINT [x"+Engine.Hints+"]");
+											}
+										}, 10);
+										break;
+									default:
+										break;
+								}
+							}
+						} else {
+							alert("NO MORE HINTS!");
+						}
+						
+					});
+				},
+				IsColourRight: function() {
+					clearTimeout(doneTimer);
+					
+					Engine.PixelColour = Engine.Context.getImageData(1,1,1,1);
+					Engine.PixelColour = Engine.PixelColour.data;
+					
+					Engine.GuessRed = eval(Engine.GuessRed);
+					Engine.GuessRed2 = eval(Engine.GuessRed2);
+					Engine.GuessGreen = eval(Engine.GuessGreen);
+					Engine.GuessGreen2 = eval(Engine.GuessGreen2);
+					Engine.GuessBlue = eval(Engine.GuessBlue);
+					Engine.GuessBlue2 = eval(Engine.GuessBlue2);
+
+					var compositeTarget = [Engine.TargetRed, Engine.TargetGreen, Engine.TargetBlue];
+					var compositeColour = [
+						Math.floor(Engine.GuessRed + Engine.GuessRed2),
+						Math.floor(Engine.GuessGreen + Engine.GuessGreen2),
+						Math.floor(Engine.GuessBlue + Engine.GuessBlue2)
+					];
+					
+					/*console.log("\r\n");
+					console.log("target: " + compositeTarget[0] + "," + compositeTarget[1] + "," + compositeTarget[2]);
+					console.log("guess: " + compositeColour[0] + "," + compositeColour[1] + "," + compositeColour[2]);
+					console.log("\r\n");*/
+					
+					var doneTimer = null;
+					if (compositeTarget[0] >= (compositeColour[0] - Engine.Threshold) && compositeTarget[0] <= (compositeColour[0] + Engine.Threshold)) {
+						if (compositeTarget[1] >= (compositeColour[1] - Engine.Threshold) && compositeTarget[1] <= (compositeColour[1] + Engine.Threshold)) {
+							if (compositeTarget[2] >= (compositeColour[2] - Engine.Threshold) && compositeTarget[2] <= (compositeColour[2] + Engine.Threshold)) {
+								$('#finished').html("That looks good, hold on...");
+								doneTimer = setTimeout(function() {
+									clearTimeout(doneTimer);
+									clearInterval(Engine.TimeCheck);
+									$('#finished').html("Completed in " + Engine.Time + " seconds, now upping the difficulty!");
+									var startOver = true;
+									setTimeout(function() {
+										if (startOver === true) {
+											Engine.Init(5);
+											startOver = false;
+										}
+									}, 1500);
+								}, 2000);
+							} else {
+								clearTimeout(doneTimer);
+								$('#finished').html("");
+							}
+						} else {
+							clearTimeout(doneTimer);
+							$('#finished').html("");
+						}					
+					} else {
+						clearTimeout(doneTimer);
+						$('#finished').html("");
+					}
+				},
+				/*HexToRGB: function(hex) { 
+					var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+					return result ? {
+						r: parseInt(result[1], 16),
+						g: parseInt(result[2], 16),
+						b: parseInt(result[3], 16)
+					} : null;
+				},*/
+				GenerateColour: function() {
+					Engine.TargetRed = Math.round(Math.floor(Math.random() * 255) / 5) * 5;
+					Engine.TargetBlue = Math.round(Math.floor(Math.random() * 255) / 5) * 5;
+					Engine.TargetGreen = Math.round(Math.floor(Math.random() * 255) / 5) * 5;
+					Engine.TargetCanvasLoop();
+					Engine.CanvasLoop();
+					Engine.Events();
+					Engine.TimeCheck = setInterval(function() {
+						Engine.Time++;
+						$('#timer #time').html(Engine.Time);
+					}, 1000);
+				},
+				TargetCanvasLoop: function() {
+					setTimeout(function() {
+						Engine.TargetContext.clearRect(0,0,Engine.TargetCanvas.width,Engine.TargetCanvas.height);
+						Engine.TargetContext.fillStyle = "rgba("+Engine.TargetRed+","+Engine.TargetGreen+","+Engine.TargetBlue+",1.0)";
+						Engine.TargetContext.fillRect(0,0,Engine.TargetCanvas.width,Engine.TargetCanvas.height);					
+						Engine.TargetCanvasLoop();
+					}, 1);
+				},
+				CanvasLoop: function() {
+					setTimeout(function() {
+						Engine.Context.clearRect(0,0,Engine.Canvas.width,Engine.Canvas.height);
+						Engine.Context.fillStyle = "rgba("+((Math.round(Engine.GuessRed+Engine.GuessRed2) / 5) * 5)+","+((Math.round(Engine.GuessGreen+Engine.GuessGreen2) / 5) * 5)+","+((Math.round(Engine.GuessBlue+Engine.GuessBlue2) / 5) * 5)+",1.0)";
+						Engine.Context.fillRect(0,0,Engine.Canvas.width,Engine.Canvas.height);
+						Engine.CanvasLoop();
+					}, 1);
+				}
+			};
+			
+			
+			
+			window.onload = function() {
+				Engine.SetUp();
+			};
+		</script>
+	</body>
+</html>
+
+
+
+
+
+
+
